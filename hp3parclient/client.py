@@ -56,22 +56,28 @@ class HP3ParClient(object):
     PORT_TYPE_HOST = 1
     PORT_TYPE_DISK = 2
     PORT_TYPE_FREE = 3
-    PORT_TYPE_RCIP = 6
-    PORT_TYPE_ISCSI = 7
+    PORT_TYPE_IPORT = 4
+    PORT_TYPE_RCFC = 5
+    PORT_TYPE_PEER = 6
+#    TODO: Ramy Check this!
+    PORT_TYPE_RCIP = 7
+    PORT_TYPE_ISCSI = 8
+    PORT_TYPE_CNA = 9
 
     PORT_PROTO_FC = 1
     PORT_PROTO_ISCSI = 2
+    PORT_PROTO_FCOE = 3
     PORT_PROTO_IP = 4
+    PORT_PROTO_SAS = 5
 
     PORT_STATE_READY = 4
     PORT_STATE_SYNC = 5
     PORT_STATE_OFFLINE = 10
 
-    HOST_EDIT_ADD = 1
-    HOST_EDIT_REMOVE = 2
-
     SET_MEM_ADD = 1
     SET_MEM_REMOVE = 2
+    SET_RESYNC_PHYSICAL_COPY = 3
+    SET_STOP_PHYSICAL_COPY = 4
 
     STOP_PHYSICAL_COPY = 1
     RESYNC_PHYSICAL_COPY = 2
@@ -84,10 +90,74 @@ class HP3ParClient(object):
     PRIORITY_NORMAL = 2
     PRIORITY_HIGH = 3
 
+    TASK_TYPE_VV_COPY = 1
+    TASK_TYPE_PHYS_COPY_RESYNC = 2
+    TASK_TYPE_MOVE_REGIONS = 3
+    TASK_TYPE_PROMOTE_SV = 4
+    TASK_TYPE_REMOTE_COPY_SYNC = 5
+    TASK_TYPE_REMOTE_COPY_REVERSE = 6
+    TASK_TYPE_REMOTE_COPY_FAILOVER = 7
+    TASK_TYPE_REMOTE_COPY_RECOVER = 8
+    TASK_TYPE_REMOTE_COPY_RESTORE = 9
+    TASK_TYPE_COMPACT_CPG = 10
+    TASK_TYPE_COMPACT_IDS = 11
+    TASK_TYPE_SNAPSHOT_ACCOUNTING = 12
+    TASK_TYPE_CHECK_VV = 13
+    TASK_TYPE_SCHEDULED_TASK = 14
+    TASK_TYPE_SYSTEM_TASK = 15
+    TASK_TYPE_BACKGROUND_TASK = 16
+    TASK_TYPE_IMPORT_VV = 17
+    TASK_TYPE_ONLINE_COPY = 18
+    TASK_TYPE_CONVERT_VV = 19
+
     TASK_DONE = 1
     TASK_ACTIVE = 2
     TASK_CANCELLED = 3
     TASK_FAILED = 4
+
+    VLUN_TYPE_EMPTY = 1
+    VLUN_TYPE_PORT = 2
+    VLUN_TYPE_HOST = 3
+    VLUN_TYPE_MATCHED_SET = 4
+    VLUN_TYPE_HOST_SET = 5
+
+    VLUN_MULTIPATH_UNKNOWN = 1
+    VLUN_MULTIPATH_ROUND_ROBIN = 2
+    VLUN_MULTIPATH_FAILOVER = 3
+
+    CPG_RAID_R0 = 1     # RAID 0
+    CPG_RAID_R1 = 2     # RAID 1
+    CPG_RAID_R5 = 3     # RAID 5
+    CPG_RAID_R6 = 4     # RAID 6
+
+    CPG_HA_PORT = 1     # Support failure of a port.
+    CPG_HA_CAGE = 2     # Support failure of a drive cage.
+    CPG_HA_MAG = 3      # Support failure of a drive magazine.
+
+    CPG_CHUNKLET_POS_PREF_FIRST = 1     # Lowest numbered available chunklets, where transfer rate is the fastest.
+    CPG_CHUNKLET_POS_PREF_LAST = 2      # Highest numbered available chunklets, where transfer rate is the slowest.
+
+    CPG_DISK_TYPE_FC = 1        # Fibre Channel
+    CPG_DISK_TYPE_NL = 2        # Near Line
+    CPG_DISK_TYPE_SSD = 3       # SSD
+
+    HOST_EDIT_ADD = 1
+    HOST_EDIT_REMOVE = 2
+
+    HOST_PERSONA_GENERIC = 1
+    HOST_PERSONA_GENERIC_ALUA = 2
+    HOST_PERSONA_GENERIC_LEGACY = 3
+    HOST_PERSONA_HPUX_LEGACY = 4
+    HOST_PERSONA_AIX_LEGACY = 5
+    HOST_PERSONA_EGENERA = 6
+    HOST_PERSONA_ONTAP_LEGACY = 7
+    HOST_PERSONA_VMWARE = 8
+    HOST_PERSONA_OPENVMS = 9
+    HOST_PERSONA_HPUX = 10
+    HOST_PERSONA_WINDOWS_SERVER = 11
+
+    CHAP_OPERATION_MODE_INITIATOR = 1
+    CHAP_OPERATION_MODE_TARGET = 2
 
     # build contains major minor mj=3 min=01 main=03 build=168
     HP3PAR_WS_MIN_BUILD_VERSION = 30103168
@@ -235,16 +305,22 @@ class HP3ParClient(object):
         .. code-block:: python
 
             optional = {
-             'id': 12,
-             'comment': 'some comment',
-             'snapCPG' :'CPG name',
-             'ssSpcAllocWarningPct' : 12,
-             'ssSpcAllocLimitPct': 22,
-             'tpvv' : True,
-             'usrSpcAllocWarningPct': 22,
-             'usrSpcAllocLimitPct': 22,
-             'expirationHours': 256,
-             'retentionHours': 256
+             'id': 12,                      # Volume ID. If not specified, next available is chosen
+             'comment': 'some comment',     # Additional information up to 511 charactres
+             'policies: {                   # Specifies VV policies
+                'staleSS': False,           # True allows stale snapshots.
+                'oneHost': True,            # True constrains volume export to single host or host cluster
+                'zeroDetect': True,         # True requests Storage System to scan for zeros in incoming write data
+                'system': False             # True special volume used by system. False is normal user volume
+                'caching': True},           # Read-only. True indicates write & read caching & read ahead enabled
+             'snapCPG': 'CPG name',         # CPG Used for snapshots
+             'ssSpcAllocWarningPct': 12,    # Snapshot space allocation warning
+             'ssSpcAllocLimitPct': 22,      # Snapshot space allocation limit
+             'tpvv': True,                  # True: Create TPVV, False (default) Create FPVV
+             'usrSpcAllocWarningPct': 22,   # Enable user space allocation warning
+             'usrSpcAllocLimitPct': 22,     # User space allocation limit
+             'expirationHours': 256,        # Relative time from now to expire volume (max 43,800 hours)
+             'retentionHours': 256          # Relative time from now to retain volume (max 43,800 hours)
             }
 
         :returns: List of Volumes
@@ -285,6 +361,34 @@ class HP3ParClient(object):
         :type name: str
         :param volumeMods: dictionary of volume attributes to change
         :type volumeMods: dict
+
+        .. code-block:: python
+
+            volumeMods = {
+             'newName': 'newName',          # New volume name
+             'comment': 'some comment',     # New volume comment
+             'snapCPG': 'CPG name',         # Snapshot CPG name
+             'policies: {                   # Specifies VV policies
+                'staleSS': False,           # True allows stale snapshots.
+                'oneHost': True,            # True constrains volume export to single host or host cluster
+                'zeroDetect': True,         # True requests Storage System to scan for zeros in incoming write data
+                'system': False             # True special volume used by system. False is normal user volume
+                'caching': True},           # Read-only. True indicates write & read caching & read ahead enabled
+             'ssSpcAllocWarningPct': 12,    # Snapshot space allocation warning
+             'ssSpcAllocLimitPct': 22,      # Snapshot space allocation limit
+             'tpvv': True,                  # True: Create TPVV, False (default) Create FPVV
+             'usrSpcAllocWarningPct': 22,   # Enable user space allocation warning
+             'usrSpcAllocLimitPct': 22,     # User space allocation limit
+             'userCPG': 'User CPG name',    # User CPG name
+             'expirationHours': 256,        # Relative time from now to expire volume (max 43,800 hours)
+             'retentionHours': 256          # Relative time from now to retain volume (max 43,800 hours)
+             'rmSsSpcAllocWarning': False,  # True removes snapshot space allocation warning. False sets it when value > 0
+             'rmUsrSpcAllocWarwaning': False, # True removes user space allocation warning. False sets it when value > 0
+             'rmExpTime': False,            # True resets expiration time to 0. False sets it when value > 0
+             'rmSsSpcAllocLimit': False,    # True removes snapshot space allocation limit. False sets it when value > 0
+             'rmUsrSpcAllocLimit': False    # True removes user space allocation limit. False sets it when value > 0
+            }
+
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_WARN_GT_LIMIT - Allocation warning level is higher than the limit.
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_USR_ALRT_NON_TPVV - User space allocation alerts are valid only with a TPVV.
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_RETAIN_GT_EXPIRE - Retention time is greater than expiration time.
@@ -364,11 +468,11 @@ class HP3ParClient(object):
         .. code-block:: python
 
             optional = {
-                'online': False, # should physical copy be performed online?
-                'tpvv': False, # use thin provisioned space for destination?  (online copy only)
-                'snapCPG' : "OpenStack_SnapCPG, # snapshot CPG for the destination (online copy only)
-                'saveSnapshot': False, # save the snapshot of the source volume after the copy id complete?
-                'priority' : 1 # taskPriorityEnum (does not apply to online copy)
+                'online': False,                # should physical copy be performed online?
+                'tpvv': False,                  # use thin provisioned space for destination?  (online copy only)
+                'snapCPG': 'OpenStack_SnapCPG', # snapshot CPG for the destination (online copy only)
+                'saveSnapshot': False,          # save the snapshot of the source volume after the copy id complete?
+                'priority': 1                   # taskPriorityEnum (does not apply to online copy)
             }
 
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_ILLEGAL_CHAR - Invalid VV name or CPG name.
@@ -571,11 +675,11 @@ class HP3ParClient(object):
         .. code-block:: python
 
             optional = {
-                'id' : 12, # Specifies the ID of the volume, next by default
-                'comment' : "some comment",
-                'readOnly' : True, # Read Only
-                'expirationHours' : 36 # time from now to expire
-                'retentionHours' : 12 # time from now to expire
+                'id': 12,                   # Specifies the ID of the volume, next by default
+                'comment': "some comment",
+                'readOnly': True,           # Read Only
+                'expirationHours': 36       # time from now to expire
+                'retentionHours': 12        # time from now to expire
             }
 
         :raises: :class:`~hp3parclient.exceptions.HTTPNotFound` - NON_EXISTENT_VOL - The volume does not exist
@@ -631,11 +735,16 @@ class HP3ParClient(object):
         .. code-block:: python
 
             optional = {
-                'domain' : 'myDomain', # Create the host in the specified domain, or default domain if unspecified.
-                'forceTearDown' : False, # If True, force to tear down low-priority VLUN exports.
-                'iSCSINames' : True, # Read Only
-                'descriptors' : {'location' : 'earth', 'IPAddr' : '10.10.10.10', 'os': 'linux',
-                              'model' : 'ex', 'contact': 'Smith', 'comment' : 'Joe's box}
+                'persona': 1                    # ID of the persona to assign to the host. 3.1.3 default: Generic-ALUA, 3.1.2 default: General
+                'domain': 'myDomain',           # Create the host in the specified domain, or default domain if unspecified.
+                'forceTearDown': False,         # If True, force to tear down low-priority VLUN exports.
+                'descriptors':
+                    {'location': 'earth',       # The host's location
+                     'IPAddr': '10.10.10.10',   # The host's IP address
+                     'os': 'linux',             # The operating system running on the host.
+                     'model': 'ex',             # The host's model
+                     'contact': 'Smith',        # The host's owner and contact
+                     'comment': "Joe's box"}    # Additional host information
             }
 
         :raises: :class:`~hp3parclient.exceptions.HTTPForbidden` - PERM_DENIED - Permission denied
@@ -678,10 +787,26 @@ class HP3ParClient(object):
         .. code-block:: python
 
             mod_request = {
-                'newName' : 'myNewName', # New name of the host
-                'pathOperation' : 1, # If adding, adds the WWN or iSCSI name to the existing host.
-                'FCWWNs' : [], # One or more WWN to set for the host.
-                'iSCSINames' : [], # One or more iSCSI names to set for the host.
+                'newName': 'myNewName',         # New name of the host
+                'pathOperation': 1,             # If adding, adds the WWN or iSCSI name to the existing host.
+                'FCWWNs': [],                   # One or more WWN to set for the host.
+                'iSCSINames': [],               # One or more iSCSI names to set for the host.
+                'forcePathRemoval': False,      # If True, remove SSN(s) or iSCSI(s) even if there are VLUNs exported to host
+                'persona': 1,                   # ID of the persona to modify the host's persona to.
+                'descriptors':
+                    {'location': 'earth',       # The host's location
+                     'IPAddr': '10.10.10.10',   # The host's IP address
+                     'os': 'linux',             # The operating system running on the host.
+                     'model': 'ex',             # The host's model
+                     'contact': 'Smith',        # The host's owner and contact
+                     'comment': 'Joes box'}     # Additional host information
+                'chapOperation':                # Add or remove
+                'chapOperationMode':            # Initator or target
+                'chapName': 'MyChapName',       # The chap name
+                'chapSecret': 'xyz',            # The chap secret for the host or the target
+                'chapSecretHex': False          # If True, the chapSecret is treated as Hex.
+                'chapRemoveTargetOnly': True    # If True, then remove target chap only
+
             }
 
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT - Missing host name.
@@ -914,12 +1039,17 @@ class HP3ParClient(object):
         .. code-block:: python
 
             optional = {
-                'growthIncrementMiB' : 100,
-                'growthLimitMiB' : 1024,
-                'usedLDWarningAlertMiB' : 200,
-                'domain' : 'MyDomain',
-                'LDLayout' : {'RAIDType' : 1, 'setSize' : 100, 'HA': 0,
-                              'chunkletPosPref' : 2, 'diskPatterns': []}
+                'growthIncrementMiB': 100,     # Growth increment in MiB for each auto-grown operation
+                'growthLimitMiB': 1024,        # Auto-grow operation is limited to specified storage amount in MiB
+                'usedLDWarningAlertMiB': 200,  # Threshold to trigger warning of used logical disk space
+                'domain': 'MyDomain',          # Name of the domain object will reside
+                'LDLayout': {
+                    'RAIDType': 1,             # Disk Raid Type (RAID 0 = 0, RAID 1 = 2, RAID 3 = 5, RAID 6 = 4)
+                    'setSize': 100,            # Size in number of chunklets
+                    'HA': 0,                   # Layout supports failure of one port pair (1), one cage (2), or one magazine (3)
+                    'chunkletPosPref': 2,      # Chunklet location perference characteristics.
+                                               # Lowest Number/Fastest transfer = 1, Higher Number/Slower transfer = 2
+                    'diskPatterns': []}        # Patterns for candidate disks
             }
 
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT Invalid URI Syntax.
@@ -1009,6 +1139,13 @@ class HP3ParClient(object):
         :type hostname: str
         :param portPos: 'portPos' (dict) - System port of VLUN exported to. It includes node number, slot number, and card port number
         :type portPos: dict
+
+        .. code-block:: python
+
+            portPos = {'node': 1,   # System node (0-7)
+                       'slot': 2,   # PCI bus slot in the node (0-5)
+                       'port': 1}   # Port number on the FC card (0-4)
+
         :param noVcn: A VLUN change notification (VCN) not be issued after export (-novcn). Default: False.
         :type noVcn: bool
         :param overrideLowerPriority: Existing lower priority VLUNs will
@@ -1062,6 +1199,13 @@ class HP3ParClient(object):
         the system node number, PCI bus slot number, and card port number on
         the FC card in the format <node>:<slot>:<cardPort>
         :type port: dict
+
+        .. code-block:: python
+
+            portPos = {'node': 1,   # System node (0-7)
+                       'slot': 2,   # PCI bus slot in the node (0-5)
+                       'port': 1}   # Port number on the FC card (0-4)
+
 
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_MISSING_REQUIRED - Incomplete VLUN info. Missing volumeName or lun, or both hostname and port.
         :raises: :class:`~hp3parclient.exceptions.HTTPBadRequest` - INV_INPUT_PORT_SELECTION - Specified port is invalid.
